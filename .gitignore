@@ -35,3 +35,8 @@ libtiff*.deb
 # Scripts generados automáticamente (se pueden regenerar)
 conectar_vpn_gva.sh
 verificar_certificados.sh
+
+# Archivos privados/personales
+sshfs*
+*arkantu*
+*.txt
