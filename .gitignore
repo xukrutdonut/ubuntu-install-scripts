@@ -1,0 +1,37 @@
+# Archivos temporales
+*.tmp
+*.log
+*~
+
+# Archivos de paquetes descargados
+*.deb
+*.tar.gz
+*.zip
+
+# Archivos de sistema
+.DS_Store
+Thumbs.db
+
+# Archivos de configuración personal
+**/config/personal/
+*.key
+*.pem
+
+# Directorios temporales
+temp/
+tmp/
+build/
+
+# Archivos de backup
+*.bak
+*.backup
+*_backup
+
+# Archivos específicos de SafeSign (grandes)
+SafeSign_IC_Standard_Linux_*.deb
+libwx*.deb
+libtiff*.deb
+
+# Scripts generados automáticamente (se pueden regenerar)
+conectar_vpn_gva.sh
+verificar_certificados.sh

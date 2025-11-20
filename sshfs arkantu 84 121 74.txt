@@ -1,0 +1,2 @@
+:sshfs arkantu@84.121.82.109:/Espacio-Servidor /ruta de destino
+contraseña: Mayo_1968
