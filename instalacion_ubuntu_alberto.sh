@@ -5,7 +5,7 @@
 # ================================================================================================
 # Autor: Alberto - Script unificado y depurado
 # Fecha: 2024-11-24
-# Versión: 3.1 EXPANDIDA
+# Versión: 3.2 CORREGIDA
 # Compatibilidad: Ubuntu 22.04 / 24.04 / 25.04+
 # 
 # INCLUYE:
@@ -14,7 +14,7 @@
 # - Post-instalación para Ubuntu 25.04+
 # - Configuración de escritorio personalizada
 # - Synology Drive Client con autostart
-# - Aplicaciones Flatpak: Spotify, WhatsApp, Barrier, etc.
+# - Aplicaciones Flatpak: Spotify, WhatsApp, Zotero, InputLeap, etc.
 # - DisplayLink para pantallas USB
 # - Configuración de inicio automático
 # ================================================================================================
@@ -406,9 +406,9 @@ install_flatpak "com.rtosta.zapzap" "ZapZap (WhatsApp)" || {
     }
 }
 
-# Herramientas del sistema - Barrier (Input Leap alternative)
-log "Instalando Barrier (compartir mouse/teclado)..."
-install_flatpak "com.github.debauchee.barrier" "Barrier"
+# Herramientas del sistema - InputLeap (compartir mouse/teclado)
+log "Instalando InputLeap (compartir mouse/teclado entre PCs)..."
+install_flatpak "com.github.input_leap.input-leap" "InputLeap"
 
 # ================================================================================================
 # PASO 9: CONFIGURACIONES DEL SISTEMA
@@ -461,29 +461,29 @@ else
     info "Synology Drive no encontrado, saltando configuración de autostart"
 fi
 
-# Configurar Barrier para inicio automático (si está instalado)
-if flatpak list | grep -q "com.github.debauchee.barrier"; then
-    log "Configurando Barrier para inicio automático..."
-    cat > "$AUTOSTART_DIR/barrier.desktop" << 'EOF'
+# Configurar InputLeap para inicio automático (si está instalado)
+if flatpak list | grep -q "com.github.input_leap.input-leap"; then
+    log "Configurando InputLeap para inicio automático..."
+    cat > "$AUTOSTART_DIR/inputleap.desktop" << 'EOF'
 [Desktop Entry]
 Type=Application
-Name=Barrier
-Comment=Share mouse and keyboard between computers
-Exec=flatpak run com.github.debauchee.barrier
-Icon=barrier
+Name=InputLeap
+Comment=Share mouse and keyboard between multiple computers
+Exec=flatpak run com.github.input_leap.input-leap
+Icon=input-leap
 Terminal=false
 NoDisplay=false
 Hidden=false
 X-GNOME-Autostart-enabled=true
 StartupNotify=false
 EOF
-    log "✅ Barrier configurado para iniciar automáticamente"
+    log "✅ InputLeap configurado para iniciar automáticamente"
 else
-    info "Barrier no encontrado, saltando configuración de autostart"
+    info "InputLeap no encontrado, saltando configuración de autostart"
 fi
 
 # Verificar archivos de autostart creados
-if [ -f "$AUTOSTART_DIR/synology-drive.desktop" ] || [ -f "$AUTOSTART_DIR/barrier.desktop" ]; then
+if [ -f "$AUTOSTART_DIR/synology-drive.desktop" ] || [ -f "$AUTOSTART_DIR/inputleap.desktop" ]; then
     log "Archivos de inicio automático creados en: $AUTOSTART_DIR"
     ls -la "$AUTOSTART_DIR"/*.desktop 2>/dev/null || true
 fi
@@ -596,7 +596,7 @@ echo "   ✅ Firefox (Mozilla oficial)"
 echo "   ✅ GIMP, VLC, FileZilla, Timeshift"  
 echo "   ✅ Flatpak + Flathub:"
 echo "     • Spotify, Zotero, OBS Studio, LibreOffice"
-echo "     • WhatsApp (ZapZap), Barrier (compartir mouse/teclado)"
+echo "     • WhatsApp (ZapZap), InputLeap (compartir mouse/teclado)"
 echo "   ✅ Herramientas certificados digitales"
 echo "   ✅ OpenConnect VPN"
 if dpkg -l synology-drive* 2>/dev/null | grep -q synology; then
@@ -614,8 +614,8 @@ echo "   🚀 Inicio automático configurado para:"
 if [ -f "$HOME/.config/autostart/synology-drive.desktop" ]; then
     echo "     • Synology Drive Client"
 fi
-if [ -f "$HOME/.config/autostart/barrier.desktop" ]; then
-    echo "     • Barrier (compartir mouse/teclado)"
+if [ -f "$HOME/.config/autostart/inputleap.desktop" ]; then
+    echo "     • InputLeap (compartir mouse/teclado)"
 fi
 echo ""
 
