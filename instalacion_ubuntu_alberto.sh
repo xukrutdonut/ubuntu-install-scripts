@@ -5,15 +5,18 @@
 # ================================================================================================
 # Autor: Alberto - Script unificado y depurado
 # Fecha: 2024-11-24
-# Versión: 3.0 UNIFICADA
+# Versión: 3.1 EXPANDIDA
 # Compatibilidad: Ubuntu 22.04 / 24.04 / 25.04+
 # 
 # INCLUYE:
-# - Instalación completa del sistema
+# - Instalación completa del sistema base
 # - Configuración de certificados digitales (GyD)
 # - Post-instalación para Ubuntu 25.04+
 # - Configuración de escritorio personalizada
-# - Instalación DisplayLink para pantallas USB
+# - Synology Drive Client con autostart
+# - Aplicaciones Flatpak: Spotify, WhatsApp, Barrier, etc.
+# - DisplayLink para pantallas USB
+# - Configuración de inicio automático
 # ================================================================================================
 
 set -e  # Salir inmediatamente si hay un error
@@ -330,10 +333,48 @@ else
 fi
 
 # ================================================================================================
-# PASO 8: APLICACIONES FLATPAK
+# PASO 8: SYNOLOGY DRIVE CLIENT
 # ================================================================================================
 
-section "PASO 8: APLICACIONES FLATPAK"
+section "PASO 8: SYNOLOGY DRIVE CLIENT"
+
+read -p "¿Instalar Synology Drive Client? (s/N): " -n 1 -r
+echo
+if [[ $REPLY =~ ^[Ss]$ ]]; then
+    log "Instalando Synology Drive Client..."
+    
+    cd "$SCRIPT_DIR"
+    
+    # Descargar Synology Drive si no existe
+    SYNOLOGY_DEB="synology-drive-client-latest.x86_64.deb"
+    if [ ! -f "$SYNOLOGY_DEB" ]; then
+        log "Descargando Synology Drive Client..."
+        wget "https://global.synologydownload.com/download/Utility/SynologyDriveClient/3.5.0-16084/Ubuntu/Installer/synology-drive-client-16084.x86_64.deb" -O "$SYNOLOGY_DEB" || {
+            warning "Error descargando Synology Drive, intentando versión alternativa..."
+            # Intentar con URL genérica más reciente
+            wget "https://archive.synology.com/download/Utility/SynologyDriveClient/3.4.0-15724/Ubuntu/Installer/synology-drive-client-15724.x86_64.deb" -O "$SYNOLOGY_DEB"
+        }
+    fi
+    
+    if [ -f "$SYNOLOGY_DEB" ]; then
+        log "Instalando Synology Drive Client..."
+        sudo dpkg -i "$SYNOLOGY_DEB" || {
+            warning "Arreglando dependencias de Synology Drive..."
+            sudo apt-get install -f -y
+        }
+        log "✅ Synology Drive Client instalado"
+    else
+        warning "No se pudo descargar Synology Drive Client"
+    fi
+else
+    info "Saltando instalación Synology Drive Client"
+fi
+
+# ================================================================================================
+# PASO 9: APLICACIONES FLATPAK
+# ================================================================================================
+
+section "PASO 9: APLICACIONES FLATPAK"
 
 install_flatpak() {
     local app_id="$1"
@@ -348,10 +389,26 @@ install_flatpak() {
 }
 
 log "Instalando aplicaciones esenciales vía Flatpak..."
+
+# Aplicaciones multimedia y productividad
 install_flatpak "com.spotify.Client" "Spotify"
 install_flatpak "org.zotero.Zotero" "Zotero"  
 install_flatpak "com.obsproject.Studio" "OBS Studio"
 install_flatpak "org.libreoffice.LibreOffice" "LibreOffice"
+
+# Aplicaciones de comunicación
+log "Instalando WhatsApp..."
+install_flatpak "com.rtosta.zapzap" "ZapZap (WhatsApp)" || {
+    warning "ZapZap no disponible, probando alternativa..."
+    install_flatpak "com.ktechpit.whatsie" "Whatsie (WhatsApp Web)" || {
+        warning "Instalando Franz como cliente de mensajería alternativo..."
+        install_flatpak "com.meetfranz.Franz" "Franz"
+    }
+}
+
+# Herramientas del sistema - Barrier (Input Leap alternative)
+log "Instalando Barrier (compartir mouse/teclado)..."
+install_flatpak "com.github.debauchee.barrier" "Barrier"
 
 # ================================================================================================
 # PASO 9: CONFIGURACIONES DEL SISTEMA
@@ -372,10 +429,70 @@ if command -v tlp >/dev/null; then
 fi
 
 # ================================================================================================
-# PASO 10: SCRIPTS DE UTILIDAD
+# PASO 10: CONFIGURACIÓN DE INICIO AUTOMÁTICO
 # ================================================================================================
 
-section "PASO 10: CREACIÓN DE SCRIPTS AUXILIARES"
+section "PASO 10: CONFIGURACIÓN DE INICIO AUTOMÁTICO"
+
+log "Configurando aplicaciones para inicio automático..."
+
+# Crear directorio de autostart si no existe
+AUTOSTART_DIR="$HOME/.config/autostart"
+mkdir -p "$AUTOSTART_DIR"
+
+# Configurar Synology Drive para inicio automático (si está instalado)
+if command -v synology-drive >/dev/null 2>&1 || [ -f "/opt/Synology/SynologyDrive/bin/synology-drive" ]; then
+    log "Configurando Synology Drive para inicio automático..."
+    cat > "$AUTOSTART_DIR/synology-drive.desktop" << 'EOF'
+[Desktop Entry]
+Type=Application
+Name=Synology Drive Client
+Comment=Synology Drive Client for file synchronization
+Exec=/opt/Synology/SynologyDrive/bin/synology-drive
+Icon=SynologyDrive
+Terminal=false
+NoDisplay=false
+Hidden=false
+X-GNOME-Autostart-enabled=true
+StartupNotify=false
+EOF
+    log "✅ Synology Drive configurado para iniciar automáticamente"
+else
+    info "Synology Drive no encontrado, saltando configuración de autostart"
+fi
+
+# Configurar Barrier para inicio automático (si está instalado)
+if flatpak list | grep -q "com.github.debauchee.barrier"; then
+    log "Configurando Barrier para inicio automático..."
+    cat > "$AUTOSTART_DIR/barrier.desktop" << 'EOF'
+[Desktop Entry]
+Type=Application
+Name=Barrier
+Comment=Share mouse and keyboard between computers
+Exec=flatpak run com.github.debauchee.barrier
+Icon=barrier
+Terminal=false
+NoDisplay=false
+Hidden=false
+X-GNOME-Autostart-enabled=true
+StartupNotify=false
+EOF
+    log "✅ Barrier configurado para iniciar automáticamente"
+else
+    info "Barrier no encontrado, saltando configuración de autostart"
+fi
+
+# Verificar archivos de autostart creados
+if [ -f "$AUTOSTART_DIR/synology-drive.desktop" ] || [ -f "$AUTOSTART_DIR/barrier.desktop" ]; then
+    log "Archivos de inicio automático creados en: $AUTOSTART_DIR"
+    ls -la "$AUTOSTART_DIR"/*.desktop 2>/dev/null || true
+fi
+
+# ================================================================================================
+# PASO 11: SCRIPTS DE UTILIDAD
+# ================================================================================================
+
+section "PASO 11: CREACIÓN DE SCRIPTS AUXILIARES"
 
 # Script de conexión VPN
 log "Creando script de VPN Generalitat..."
@@ -455,10 +572,10 @@ EOF
 chmod +x "$SCRIPT_DIR/verificar_certificados.sh"
 
 # ================================================================================================
-# PASO 11: LIMPIEZA Y FINALIZACIÓN
+# PASO 12: LIMPIEZA Y FINALIZACIÓN
 # ================================================================================================
 
-section "PASO 11: LIMPIEZA FINAL"
+section "PASO 12: LIMPIEZA FINAL"
 
 log "Limpiando sistema..."
 sudo apt autoremove -y
@@ -477,17 +594,29 @@ echo ""
 info "📦 SOFTWARE INSTALADO:"
 echo "   ✅ Firefox (Mozilla oficial)"
 echo "   ✅ GIMP, VLC, FileZilla, Timeshift"  
-echo "   ✅ Flatpak + Flathub (Spotify, Zotero, OBS, LibreOffice)"
+echo "   ✅ Flatpak + Flathub:"
+echo "     • Spotify, Zotero, OBS Studio, LibreOffice"
+echo "     • WhatsApp (ZapZap), Barrier (compartir mouse/teclado)"
 echo "   ✅ Herramientas certificados digitales"
 echo "   ✅ OpenConnect VPN"
+if dpkg -l synology-drive* 2>/dev/null | grep -q synology; then
+    echo "   ✅ Synology Drive Client"
+fi
 if dpkg -l displaylink-driver 2>/dev/null | grep -q displaylink; then
     echo "   ✅ DisplayLink (pantallas USB)"
 fi
 echo ""
 
-info "📋 SCRIPTS CREADOS:"
+info "📋 SCRIPTS Y CONFIGURACIONES CREADAS:"
 echo "   📄 $SCRIPT_DIR/conectar_vpn_gva.sh"
 echo "   📄 $SCRIPT_DIR/verificar_certificados.sh"
+echo "   🚀 Inicio automático configurado para:"
+if [ -f "$HOME/.config/autostart/synology-drive.desktop" ]; then
+    echo "     • Synology Drive Client"
+fi
+if [ -f "$HOME/.config/autostart/barrier.desktop" ]; then
+    echo "     • Barrier (compartir mouse/teclado)"
+fi
 echo ""
 
 info "🔧 CERTIFICADOS DIGITALES:"
