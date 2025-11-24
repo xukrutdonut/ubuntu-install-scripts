@@ -9,12 +9,7 @@
 ## 🎯 Uso Rápido
 
 ```bash
-# ⭐ NUEVO: Script Unificado Todo-en-Uno (RECOMENDADO)
-chmod +x instalacion_ubuntu_alberto.sh
-./instalacion_ubuntu_alberto.sh
-
-# Alternativamente, scripts individuales:
-# 1. Solo instalación base
+# 1. Instalación completa (recomendado)
 chmod +x instalacion_completa_ubuntu.sh
 ./instalacion_completa_ubuntu.sh
 
@@ -29,18 +24,8 @@ chmod +x VPN-SAN-GVA.sh
 
 ## 📋 Scripts Disponibles
 
-### ⭐ **instalacion_ubuntu_alberto.sh** - **NUEVO SCRIPT UNIFICADO**
-**Script TODO-EN-UNO que incluye absolutamente todo:**
-- ✅ Instalación completa del sistema base
-- ✅ Certificados digitales (GyD) con detección automática
-- ✅ Post-instalación para Ubuntu 25.04+
-- ✅ Configuración de escritorio personalizada  
-- ✅ DisplayLink para pantallas USB (opcional)
-- ✅ Creación automática de scripts auxiliares
-- ✅ Compatible Ubuntu 22.04/24.04/25.04+
-
 ### 🌟 **instalacion_completa_ubuntu.sh** 
-**Script principal base que instala:**
+**Script principal que instala todo:**
 - ✅ Actualiza sistema y repositorios
 - ✅ Firefox desde Mozilla (elimina Snap)
 - ✅ Flatpak + Flathub + aplicaciones
