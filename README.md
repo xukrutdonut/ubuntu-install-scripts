@@ -1,188 +1,90 @@
-# 🚀 Scripts Ubuntu - Instalación Completa y Certificados Digitales
+# 🚀 Ubuntu Install Scripts - Reorganized
 
 [![Ubuntu](https://img.shields.io/badge/Ubuntu-22.04%20|%2024.04%20|%2025.04-orange.svg)](https://ubuntu.com/)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Shell](https://img.shields.io/badge/Shell-Bash-green.svg)](https://www.gnu.org/software/bash/)
 
-**Scripts depurados y unificados** para instalación completa de Ubuntu con software esencial, certificados digitales y VPN para la Generalitat Valenciana.
+**Colección reorganizada y optimizada** de scripts para instalación completa de Ubuntu con estructura modular.
 
-## 🎯 Uso Rápido
+## 📁 Nueva Estructura Organizada
+
+### 🏠 Scripts Principales (Raíz)
+- **`instalacion_ubuntu_alberto.sh`** ⭐ - Script unificado TODO-EN-UNO (RECOMENDADO)
+- `instalacion_completa_ubuntu.sh` - Script maestro de instalación base
+- `VPN-SAN-GVA-MEJORADO.sh` - VPN Generalitat (versión optimizada)
+- `InstalaciónGyD.sh` - Certificados digitales GyD
+- `post_instalacion_certificados.sh` - Post-instalación certificados
+- `network_optimization.sh` - Optimización de red
+- `fix-repositories.sh` - Reparación de repositorios
+
+### 📱 Carpetas Especializadas
+- **`touchscreen/`** - Scripts para pantallas táctiles, tablets y stylus Samsung
+- **`MacOS/`** - Configuración de máquinas virtuales macOS en VirtualBox  
+- **`displaylink/`** - Soporte para DisplayLink USB displays
+
+## 🚀 Uso Rápido
 
 ```bash
-# ⭐ NUEVO: Script Unificado Todo-en-Uno (RECOMENDADO)
+# ⭐ Instalación completa recomendada
 chmod +x instalacion_ubuntu_alberto.sh
 ./instalacion_ubuntu_alberto.sh
 
-# Alternativamente, scripts individuales:
-# 1. Solo instalación base
-chmod +x instalacion_completa_ubuntu.sh
-./instalacion_completa_ubuntu.sh
-
-# 2. Solo certificados digitales
-chmod +x InstalaciónGyD.sh
-./InstalaciónGyD.sh
-
-# 3. Conectar VPN (después de tener certificados)
-chmod +x VPN-SAN-GVA.sh
-./VPN-SAN-GVA.sh
+# Scripts específicos por categoría
+chmod +x touchscreen/configure_tablet_mode.sh
+./touchscreen/configure_tablet_mode.sh
 ```
 
-## 📋 Scripts Disponibles
+## 🔧 Optimizaciones Realizadas
 
-### ⭐ **instalacion_ubuntu_alberto.sh** - **NUEVO SCRIPT UNIFICADO**
-**Script TODO-EN-UNO que incluye absolutamente todo:**
-- ✅ Instalación completa del sistema base
-- ✅ Certificados digitales (GyD) con detección automática
-- ✅ Post-instalación para Ubuntu 25.04+
-- ✅ Configuración de escritorio personalizada  
-- ✅ DisplayLink para pantallas USB (opcional)
-- ✅ Creación automática de scripts auxiliares
-- ✅ Compatible Ubuntu 22.04/24.04/25.04+
+### ❌ Scripts Eliminados (Redundantes)
+- `VPN-SAN-GVA.sh` → Reemplazado por versión MEJORADO
+- `instalacionescritorio.sh` → Funcionalidad integrada
+- `install-displaylink.sh` → Consolidado en carpeta displaylink/
+- Scripts touchscreen básicos → Mantenidos solo los avanzados
 
-### 🌟 **instalacion_completa_ubuntu.sh** 
-**Script principal base que instala:**
-- ✅ Actualiza sistema y repositorios
-- ✅ Firefox desde Mozilla (elimina Snap)
-- ✅ Flatpak + Flathub + aplicaciones
-- ✅ Software esencial: GIMP, VLC, FileZilla
-- ✅ Certificados digitales (SafeSign/OpenSC según versión)
-- ✅ Apps Flatpak: Spotify, Zotero, OBS, LibreOffice
+### ✅ Scripts Mantenidos y Optimizados
+- **Touchscreen**: 12 scripts especializados para diferentes casos
+- **DisplayLink**: 1 script final optimizado
+- **MacOS**: 2 scripts para virtualización completa
+- **Principales**: Scripts depurados sin redundancias
 
-### 🔧 **InstalaciónGyD.sh**
-**Especializado en certificados digitales:**
-- Detecta versión Ubuntu automáticamente
-- Descarga SafeSign si es necesario
-- Configura módulos PKCS#11
-- Fallback a OpenSC para Ubuntu 25.04+
+## 📱 Aplicaciones y Características
 
-### 📡 **VPN-SAN-GVA.sh**
-**Conexión VPN Generalitat:**
-- Verificaciones automáticas de certificados
-- Detección inteligente de tokens
-- Conexión automática con el certificado disponible
-- Diagnóstico completo en caso de error
+### Sistema Base
+- Firefox Mozilla (elimina Snap), Flatpak + Flathub
+- Certificados digitales automáticos
+- VPN Generalitat con verificaciones
 
-### 🛠️ **post_instalacion_certificados.sh**
-**Alternativo para Ubuntu 25.04+:**
-- Configura OpenSC cuando SafeSign no funciona
-- Crea scripts de verificación
-- Instrucciones para configuración manual
+### Aplicaciones Incluidas
+- **Productividad**: LibreOffice, GIMP, VLC, Zotero
+- **Flatpak**: Spotify, WhatsApp Desktop, InputLeap
+- **Sistema**: Timeshift, GNOME Tweaks, TLP
+
+### Especialidades
+- **Touchscreen**: Soporte Samsung S-Pen, modo tablet GNOME
+- **DisplayLink**: Pantallas USB plug-and-play
+- **macOS VMs**: Configuración completa VirtualBox
 
 ## 🖥️ Compatibilidad
 
-| Ubuntu | instalacion_completa | InstalaciónGyD | Certificados | VPN |
-|--------|---------------------|----------------|--------------|-----|
-| 22.04  | ✅ Completa | ✅ SafeSign | ✅ Total | ✅ |
-| 24.04  | ✅ Completa | ✅ SafeSign | ✅ Total | ✅ |
-| 25.04+ | ✅ Completa | 🔄 OpenSC  | ⚠️ Manual | ✅ |
+| Ubuntu | Base | Certificados | VPN | Touchscreen | DisplayLink |
+|--------|------|-------------|-----|-------------|-------------|
+| 22.04  | ✅   | ✅ SafeSign  | ✅  | ✅          | ✅          |
+| 24.04  | ✅   | ✅ SafeSign  | ✅  | ✅          | ✅          |
+| 25.04+ | ✅   | 🔄 OpenSC   | ✅  | ✅          | ✅          |
 
-## 🔧 Correcciones Implementadas
+## 📋 Documentación Detallada
 
-| ❌ Problema Original | ✅ Solución |
-|---------------------|-------------|
-| PPAs incompatibles Ubuntu 25.04+ | Detecta versión automáticamente |
-| Diálogos cuelgan instalación | `DEBIAN_FRONTEND=noninteractive` |
-| SafeSign falla Ubuntu nuevas | OpenSC como alternativa |
-| Sin manejo de errores | `set -e` + verificaciones |
-| Scripts sin logs | Colores y logging completo |
-| No verifica servicios | Arranca y verifica `pcscd` |
+- `README_STRUCTURE.md` - Detalles completos de cada script
+- `MEJORAS-REALIZADAS.md` - Log de optimizaciones
+- `resumen_instalacion.md` - Registro de instalación
 
-## 🛠️ Verificaciones Post-Instalación
+## 🤝 Contribuir
 
-### Certificados Digitales
-```bash
-# Verificar servicio
-systemctl status pcscd
-
-# Escanear lectores
-pcsc_scan
-
-# Listar tokens
-p11tool --list-tokens
-
-# Verificar certificados
-p11tool --list-privkeys --login
-```
-
-### Aplicaciones
-```bash
-# Verificar Firefox
-firefox --version
-
-# Verificar Flatpak
-flatpak --version
-flatpak list
-
-# Verificar VLC, GIMP
-vlc --version
-gimp --version
-```
-
-## 🆘 Solución de Problemas
-
-### Error "apt lock"
-```bash
-sudo killall apt-get
-sudo rm /var/lib/dpkg/lock-frontend
-sudo dpkg --configure -a
-```
-
-### Certificados no detectados
-```bash
-# Verificar lector USB
-lsusb | grep -i smart
-
-# Reiniciar servicios
-sudo systemctl restart pcscd
-
-# Verificar módulos P11
-p11-kit list-modules
-```
-
-### VPN no conecta
-```bash
-# Verificar certificados
-p11tool --list-privkeys --login
-
-# Verificar conectividad
-ping vpn.san.gva.es
-
-# Instalar dependencias VPN
-sudo apt install network-manager-openconnect-gnome
-```
-
-## 📦 Software Instalado
-
-**Sistema Base:**
-- Firefox (Mozilla oficial), Flatpak + Flathub
-- Certificados digitales (pcscd, SafeSign/OpenSC)
-- OpenConnect VPN
-
-**Aplicaciones:**
-- GIMP, VLC, FileZilla
-- Spotify, Zotero, OBS Studio, LibreOffice
-- Timeshift (copias de seguridad)
-
-## 📁 Archivos Generados
-
-```
-/home/arkantu/Escritorio/scripts/
-├── SafeSign_*.deb                   # Drivers descargados
-├── libwx*.deb                       # Dependencias
-├── conectar_vpn_gva.sh             # Script VPN auto-generado
-├── verificar_certificados.sh       # Verificación
-└── resumen_instalacion.md          # Log de instalación
-```
-
-## 🔗 Enlaces Útiles
-
-- [SafeSign Drivers](https://www.a-et.com/products/smart-card-middleware/)
-- [OpenSC Project](https://github.com/OpenSC/OpenSC)
-- [Flathub Apps](https://flathub.org/)
-- [VPN Generalitat](https://vpn.san.gva.es)
+Mejoras y sugerencias bienvenidas. Abre un issue o envía un pull request.
 
 ---
 
-⭐ **Scripts depurados y testados - Compatible Ubuntu 22.04/24.04/25.04**
+⭐ **Scripts optimizados y organizados - Ubuntu 22.04/24.04/25.04**
 
-*Mantenido por [@arkantu](https://github.com/arkantu) - Nov 2024*
+*Reorganizado y mantenido por [@arkantu](https://github.com/arkantu) - Diciembre 2024*
