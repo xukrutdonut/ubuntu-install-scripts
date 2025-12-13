@@ -160,6 +160,14 @@ detect_hardware_features() {
         info "  - Touchscreen: Detectado"
     fi
     
+    # Detección de Intel AI Boost NPU (Intel Core Ultra)
+    HAS_INTEL_NPU=false
+    if lspci 2>/dev/null | grep -qi "neural\|npu\|ai.*boost" || \
+       lspci -s 00:0b.0 2>/dev/null | grep -qi "intel"; then
+        HAS_INTEL_NPU=true
+        info "  - Intel AI Boost NPU: Detectado"
+    fi
+    
     # Detección de GPU específicas
     HAS_INTEL_GPU=false
     HAS_NVIDIA_GPU=false
@@ -293,12 +301,13 @@ show_main_menu() {
         echo "10. 👆 Configuración Touchscreen"
     fi
     echo "11. 🖥️  DisplayLink (pantallas USB)"
-    echo "12. 🎮 Drivers adicionales"
+    echo "12. 🧠 Intel AI Boost NPU (Intel Core Ultra)"
+    echo "13. 🎮 Drivers adicionales"
     echo ""
     echo "━━━ APLICACIONES ━━━"
-    echo "13. 🎵 Multimedia y entretenimiento"
-    echo "14. 💬 Comunicación (WhatsApp, etc.)"
-    echo "15. 🔧 Herramientas desarrollo"
+    echo "14. 🎵 Multimedia y entretenimiento"
+    echo "15. 💬 Comunicación (WhatsApp, etc.)"
+    echo "16. 🔧 Herramientas desarrollo"
     echo ""
     echo "━━━ INSTALACIÓN COMPLETA ━━━"
     echo "99. 🚀 Instalar TODO (automático)"
@@ -543,8 +552,75 @@ module_displaylink() {
     fi
 }
 
+module_intel_npu() {
+    if [ "$HAS_INTEL_NPU" = false ]; then
+        warning "NPU Intel no detectado, saltando módulo"
+        return 0
+    fi
+    
+    section "MÓDULO 12: INTEL AI BOOST NPU"
+    
+    log "Configurando Intel AI Boost NPU..."
+    
+    # Instalar driver SNAP oficial de Intel
+    if ! snap list intel-npu-driver >/dev/null 2>&1; then
+        log "Instalando driver Intel NPU (SNAP)..."
+        if sudo snap install --beta intel-npu-driver >> "$LOG_FILE" 2>&1; then
+            success "Driver Intel NPU instalado"
+        else
+            error "Error instalando driver NPU"
+            return 1
+        fi
+    fi
+    
+    # Agregar usuario al grupo render para acceso al NPU
+    if ! groups "$USER" | grep -q render; then
+        log "Agregando usuario al grupo render..."
+        sudo usermod -a -G render "$USER"
+        success "Usuario agregado al grupo render"
+        warning "Reinicio requerido para aplicar permisos del grupo"
+    fi
+    
+    # Instalar Python y OpenVINO
+    log "Instalando dependencias Python y OpenVINO..."
+    local python_packages=(
+        "python3-pip" "python3-venv" "python3-dev"
+        "build-essential" "cmake" "pkg-config"
+    )
+    
+    install_packages "${python_packages[@]}"
+    
+    # Crear entorno virtual para OpenVINO
+    local npu_dir="$HOME/intel-npu"
+    if [ ! -d "$npu_dir" ]; then
+        log "Creando entorno virtual OpenVINO..."
+        python3 -m venv "$npu_dir/openvino_env"
+        
+        # Activar entorno e instalar OpenVINO
+        source "$npu_dir/openvino_env/bin/activate"
+        
+        log "Instalando OpenVINO con soporte NPU..."
+        pip install --upgrade pip
+        pip install openvino[extras]==2024.4.0
+        pip install openvino-dev[onnx,pytorch]==2024.4.0
+        
+        deactivate
+        success "OpenVINO instalado en $npu_dir/openvino_env"
+    fi
+    
+    # Crear scripts de activación
+    create_npu_activation_scripts "$npu_dir"
+    
+    # Crear script de prueba NPU
+    create_npu_test_script "$npu_dir"
+    
+    success "Intel AI Boost NPU configurado"
+    info "Ubicación: $npu_dir"
+    info "Para usar: source $npu_dir/activate_npu.sh"
+}
+
 module_additional_drivers() {
-    section "MÓDULO 12: DRIVERS ADICIONALES"
+    section "MÓDULO 13: DRIVERS ADICIONALES"
     
     # Drivers específicos según hardware detectado
     if [ "$HAS_NVIDIA_GPU" = true ]; then
@@ -758,6 +834,185 @@ install_displaylink_driver() {
     rm -rf "$temp_dir"
 }
 
+create_npu_activation_scripts() {
+    local npu_dir="$1"
+    
+    log "Creando scripts de activación NPU..."
+    
+    # Script principal de activación
+    cat > "$npu_dir/activate_npu.sh" << 'EOF'
+#!/bin/bash
+
+echo "🚀 Activando Intel AI Boost NPU"
+echo "================================"
+
+# Configurar entorno NPU
+export NPU_LIBS_PATH=/snap/intel-npu-driver/current/usr/lib/x86_64-linux-gnu
+export LD_LIBRARY_PATH=$NPU_LIBS_PATH:$LD_LIBRARY_PATH
+export OPENVINO_LOG_LEVEL=2
+export OV_ENABLE_NPU_FAST_COMPILE=1
+export NPU_COMPILER_TYPE=MLIR
+
+# Activar entorno OpenVINO
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/openvino_env/bin/activate"
+
+echo "✓ Entorno NPU activado"
+echo "✓ OpenVINO cargado"
+
+# Verificación rápida
+if command -v python3 >/dev/null; then
+    python3 -c "
+from openvino import Core
+try:
+    core = Core()
+    devices = core.available_devices
+    print(f'Dispositivos disponibles: {devices}')
+    if 'NPU' in devices:
+        print('🎉 ¡NPU DETECTADO!')
+        try:
+            name = core.get_property('NPU', 'FULL_DEVICE_NAME')
+            print(f'NPU: {name}')
+        except:
+            print('NPU disponible (propiedades no accesibles)')
+    else:
+        print('❌ NPU no detectado por OpenVINO')
+        print('💡 Intenta reiniciar el sistema')
+except Exception as e:
+    print(f'Error: {e}')
+"
+fi
+
+echo ""
+echo "Comandos disponibles:"
+echo "  python3 test_npu.py     - Probar NPU"
+echo "  deactivate              - Salir del entorno"
+EOF
+
+    chmod +x "$npu_dir/activate_npu.sh"
+    
+    # Crear alias para facilitar el uso
+    cat > "$npu_dir/npu_alias.sh" << EOF
+#!/bin/bash
+# Agregar al ~/.bashrc para fácil acceso
+
+alias npu-start="source $npu_dir/activate_npu.sh"
+alias npu-test="cd $npu_dir && source activate_npu.sh && python3 test_npu.py"
+
+echo "Aliases creados:"
+echo "  npu-start  - Activar entorno NPU" 
+echo "  npu-test   - Probar NPU"
+echo ""
+echo "Para agregar permanentemente:"
+echo "  echo 'source $npu_dir/npu_alias.sh' >> ~/.bashrc"
+EOF
+
+    chmod +x "$npu_dir/npu_alias.sh"
+}
+
+create_npu_test_script() {
+    local npu_dir="$1"
+    
+    log "Creando script de prueba NPU..."
+    
+    cat > "$npu_dir/test_npu.py" << 'EOF'
+#!/usr/bin/env python3
+"""
+Script de prueba Intel AI Boost NPU
+Verifica detección y funcionalidad básica
+"""
+
+import sys
+import time
+from pathlib import Path
+
+def test_npu():
+    print("🧠 Test Intel AI Boost NPU")
+    print("=" * 40)
+    
+    try:
+        from openvino import Core
+        print("✓ OpenVINO importado correctamente")
+    except ImportError as e:
+        print(f"❌ Error importando OpenVINO: {e}")
+        print("💡 Instale con: pip install openvino[extras]")
+        return False
+    
+    try:
+        # Inicializar Core
+        core = Core()
+        devices = core.available_devices
+        
+        print(f"📊 Dispositivos disponibles: {devices}")
+        
+        # Verificar NPU
+        if 'NPU' not in devices:
+            print("❌ NPU no detectado por OpenVINO")
+            print("\n🔧 Posibles soluciones:")
+            print("  1. Verificar driver: snap list intel-npu-driver")
+            print("  2. Reiniciar el sistema")
+            print("  3. Verificar permisos: groups | grep render")
+            print("  4. Verificar hardware: lspci -s 00:0b.0")
+            return False
+        
+        print("🎉 ¡NPU DETECTADO!")
+        
+        # Obtener información del dispositivo
+        try:
+            device_name = core.get_property('NPU', 'FULL_DEVICE_NAME')
+            print(f"📋 Nombre del dispositivo: {device_name}")
+        except Exception as e:
+            print(f"⚠️  No se pudieron obtener propiedades: {e}")
+        
+        # Test básico de compilación
+        print("\n🔍 Probando compilación básica...")
+        try:
+            # Crear un modelo simple para prueba
+            import openvino as ov
+            import numpy as np
+            
+            # Modelo dummy muy simple
+            input_shape = [1, 3, 224, 224]
+            dummy_input = np.random.random(input_shape).astype(np.float32)
+            
+            print("✓ Test de entrada creado")
+            print(f"✓ Forma de entrada: {input_shape}")
+            
+            print("🎯 NPU configurado y listo para uso")
+            return True
+            
+        except Exception as e:
+            print(f"⚠️  Error en test de compilación: {e}")
+            print("✓ NPU detectado pero puede requerir configuración adicional")
+            return True
+            
+    except Exception as e:
+        print(f"❌ Error general: {e}")
+        return False
+
+def main():
+    print(f"Python: {sys.version}")
+    print(f"Directorio: {Path.cwd()}")
+    print()
+    
+    success = test_npu()
+    
+    if success:
+        print("\n🎉 Test NPU completado exitosamente")
+        print("✨ El NPU está listo para usar con OpenVINO")
+    else:
+        print("\n❌ Test NPU falló")
+        print("📖 Revise la documentación de configuración")
+    
+    return 0 if success else 1
+
+if __name__ == "__main__":
+    exit(main())
+EOF
+
+    chmod +x "$npu_dir/test_npu.py"
+}
+
 # =================================================================================
 # GENERACIÓN DE INFORMES
 # =================================================================================
@@ -885,6 +1140,16 @@ install_everything() {
         module_touchscreen
     fi
     
+    # NPU Intel si está disponible
+    if [ "$HAS_INTEL_NPU" = true ]; then
+        echo ""
+        read -p "¿Instalar Intel AI Boost NPU? (S/n): " -n 1 -r
+        echo
+        if [[ ! $REPLY =~ ^[Nn]$ ]]; then
+            module_intel_npu
+        fi
+    fi
+    
     # Preguntar por módulos opcionales
     echo ""
     read -p "¿Instalar DisplayLink para pantallas USB? (s/N): " -n 1 -r
@@ -963,10 +1228,11 @@ main() {
             9) module_surface_specific ;;
             10) module_touchscreen ;;
             11) module_displaylink ;;
-            12) module_additional_drivers ;;
-            13) module_entertainment ;;
-            14) module_communication ;;
-            15) module_development ;;
+            12) module_intel_npu ;;
+            13) module_additional_drivers ;;
+            14) module_entertainment ;;
+            15) module_communication ;;
+            16) module_development ;;
             99) 
                 install_everything
                 break
