@@ -1,0 +1,12 @@
+Package: libtiff5
+Version: 999.fake
+Section: libs
+Priority: optional
+Architecture: amd64
+Provides: libtiff5
+Conflicts: libtiff5
+Replaces: libtiff5
+Maintainer: Local User <local@example.com>
+Description: Fake libtiff5 package for compatibility
+ This is a fake package to satisfy libtiff5 dependencies
+ when using newer libtiff versions.
