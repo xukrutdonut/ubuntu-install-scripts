@@ -40,3 +40,11 @@ verificar_certificados.sh
 sshfs*
 *arkantu*
 *.txt
+
+# Archivos de credenciales y configuración sensible
+.env
+*.env
+.env.local
+.env.production
+credentials.txt
+passwords.txt
