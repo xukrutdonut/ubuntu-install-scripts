@@ -47,4 +47,6 @@ sshfs*
 .env.local
 .env.production
 credentials.txt
-passwords.txt
+passwords.txtwget-log*
+*.log
+/tmp/

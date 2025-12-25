@@ -1,0 +1,22 @@
+/* Stylesheet para VPN GVA Extension */
+
+/* Estilo para el elemento de estado */
+.vpn-status-item {
+    font-weight: bold;
+}
+
+/* Estilo para elementos de información */
+.vpn-info-item {
+    font-style: italic;
+    color: #888;
+}
+
+/* Hover effects para botones del menú */
+.popup-menu-item:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Espaciado adicional para mejor legibilidad */
+.popup-menu-item {
+    padding: 8px 12px;
+}

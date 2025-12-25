@@ -1,0 +1,9 @@
+{
+  "name": "VPN GVA Connector",
+  "description": "Gestiona la conexión VPN de la Generalitat Valenciana desde el system tray",
+  "uuid": "vpn-gva@arkantu.local",
+  "version": 1,
+  "shell-version": ["42", "43", "44", "45"],
+  "url": "",
+  "gettext-domain": "vpn-gva"
+}

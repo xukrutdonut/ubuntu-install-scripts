@@ -1,0 +1,14 @@
+[Unit]
+Description=Toggle Virtual Keyboard based on InputLeap status
+After=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=/home/arkantu/ubuntu-install-scripts/toggle-virtual-keyboard.sh
+Restart=always
+RestartSec=5
+User=arkantu
+Environment=DISPLAY=:0
+
+[Install]
+WantedBy=default.target

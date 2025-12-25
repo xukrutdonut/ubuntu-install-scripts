@@ -1,127 +1,162 @@
 #!/bin/bash
+# gnome_tablet_mode.sh - Script para gestionar el modo tablet en GNOME
 
-echo "=== Configuración Modo Tableta GNOME/Wayland ==="
+set -e
 
-# Función para habilitar rotación automática
-enable_auto_rotation() {
-    echo "Habilitando rotación automática..."
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+LOG_FILE="$HOME/.tablet-mode.log"
+
+# Función de logging
+log() {
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - $*" | tee -a "$LOG_FILE"
+}
+
+# Detectar tipo de sesión
+detect_session() {
+    if [ "$XDG_SESSION_TYPE" = "wayland" ]; then
+        echo "wayland"
+    else
+        echo "x11"
+    fi
+}
+
+# Verificar sensores de orientación
+check_sensors() {
+    log "Verificando sensores de orientación..."
     
-    # Método 1: Via dconf/gsettings
-    gsettings set org.gnome.settings-daemon.peripherals.touchscreen orientation-lock false 2>/dev/null || true
-    
-    # Método 2: Habilitar sensor de orientación
-    if command -v gdbus >/dev/null 2>&1; then
-        gdbus call --session \
-            --dest net.hadess.SensorProxy \
-            --object-path /net/hadess/SensorProxy \
-            --method net.hadess.SensorProxy.ClaimAccelerometer 2>/dev/null || true
+    local sensor_count=0
+    if [ -d "/sys/bus/iio/devices" ]; then
+        sensor_count=$(find /sys/bus/iio/devices -name "iio:device*" | wc -l)
+        log "Encontrados $sensor_count dispositivos IIO"
+        
+        # Verificar específicamente sensores de acelerómetro
+        for device in /sys/bus/iio/devices/iio:device*; do
+            if [ -f "$device/name" ]; then
+                name=$(cat "$device/name")
+                log "Sensor: $name en $device"
+                
+                # Verificar si tiene datos de aceleración
+                if ls "$device"/in_accel_* >/dev/null 2>&1; then
+                    log "  ✓ Sensor de aceleración detectado"
+                fi
+            fi
+        done
+    else
+        log "❌ No se encontró directorio de sensores IIO"
     fi
     
-    echo "✅ Rotación automática configurada"
+    # Verificar monitor-sensor
+    if command -v monitor-sensor >/dev/null 2>&1; then
+        log "✓ monitor-sensor disponible"
+    else
+        log "❌ monitor-sensor no encontrado (instalar: sudo apt install iio-sensor-proxy)"
+    fi
 }
 
-# Función para habilitar teclado virtual
-enable_virtual_keyboard() {
-    echo "Configurando teclado virtual..."
-    gsettings set org.gnome.desktop.a11y.applications screen-keyboard-enabled true
-    echo "✅ Teclado virtual habilitado"
-}
-
-# Función para configurar gestos táctiles
-configure_touch_gestures() {
-    echo "Configurando gestos táctiles..."
+# Habilitar rotación automática
+enable_auto_rotation() {
+    log "Habilitando rotación automática..."
     
-    # Habilitar gestos en GNOME
+    # En Wayland, usar configuración de GNOME
+    if [ "$(detect_session)" = "wayland" ]; then
+        gsettings set org.gnome.settings-daemon.peripherals.touchscreen orientation-lock false
+        log "✓ Rotación automática habilitada en Wayland"
+    else
+        log "⚠️ Rotación automática en X11 requiere configuración manual"
+    fi
+}
+
+# Deshabilitar rotación automática
+disable_auto_rotation() {
+    log "Deshabilitando rotación automática..."
+    
+    if [ "$(detect_session)" = "wayland" ]; then
+        gsettings set org.gnome.settings-daemon.peripherals.touchscreen orientation-lock true
+        log "✓ Rotación automática deshabilitada"
+    fi
+}
+
+# Habilitar gestos táctiles
+enable_gestures() {
+    log "Configurando gestos táctiles..."
+    
+    # Configuraciones de GNOME para mejor experiencia táctil
     gsettings set org.gnome.desktop.peripherals.touchpad natural-scroll true
     gsettings set org.gnome.desktop.peripherals.touchpad tap-to-click true
     gsettings set org.gnome.desktop.peripherals.touchpad two-finger-scrolling-enabled true
     
-    echo "✅ Gestos táctiles configurados"
+    log "✓ Gestos táctiles configurados"
 }
 
-# Función para instalar herramientas adicionales
-install_tablet_tools() {
-    echo "Instalando herramientas para modo tableta..."
-    
-    echo "Instalando dependencias..."
-    sudo apt update
-    sudo apt install -y \
-        onboard \
-        gnome-shell-extension-prefs \
-        gnome-tweaks
-    
-    echo "✅ Herramientas instaladas"
-}
-
-# Función para mostrar estado actual
+# Mostrar estado del sistema
 show_status() {
-    echo ""
-    echo "=== ESTADO ACTUAL DEL MODO TABLETA ==="
+    log "=== Estado del Sistema de Tablet ==="
     
-    echo "Sensores detectados:"
-    ls /sys/bus/iio/devices/*/name | xargs cat 2>/dev/null | sed 's/^/  - /'
+    echo "Tipo de sesión: $(detect_session)"
     
-    echo ""
-    echo "Servicio iio-sensor-proxy:"
-    systemctl is-active iio-sensor-proxy && echo "  ✅ Activo" || echo "  ❌ Inactivo"
+    # Estado del teclado virtual
+    keyboard_enabled=$(gsettings get org.gnome.desktop.a11y.applications screen-keyboard-enabled)
+    echo "Teclado virtual: $keyboard_enabled"
     
+    # Estado de rotación
+    if [ "$(detect_session)" = "wayland" ]; then
+        rotation_lock=$(gsettings get org.gnome.settings-daemon.peripherals.touchscreen orientation-lock 2>/dev/null || echo "unknown")
+        echo "Bloqueo de rotación: $rotation_lock"
+    fi
+    
+    # Verificar sensores
+    check_sensors
+    
+    # Verificar herramientas instaladas
     echo ""
-    echo "Configuración GNOME:"
-    echo "  Teclado virtual: $(gsettings get org.gnome.desktop.a11y.applications screen-keyboard-enabled)"
-    echo "  Scroll natural: $(gsettings get org.gnome.desktop.peripherals.touchpad natural-scroll)"
-    echo "  Tap to click: $(gsettings get org.gnome.desktop.peripherals.touchpad tap-to-click)"
+    echo "=== Herramientas Disponibles ==="
+    command -v monitor-sensor >/dev/null && echo "✓ monitor-sensor" || echo "❌ monitor-sensor"
+    command -v onboard >/dev/null && echo "✓ onboard (teclado en pantalla)" || echo "⚠️ onboard no instalado"
+    command -v xinput >/dev/null && echo "✓ xinput" || echo "❌ xinput"
 }
 
-# Función para rotación manual (solo en X11)
-manual_rotation() {
-    if [ "$XDG_SESSION_TYPE" = "wayland" ]; then
-        echo "⚠️  Rotación manual no disponible en Wayland"
-        echo "   Usa Configuración > Pantallas para rotar manualmente"
-        echo "   O gira físicamente la tableta para rotación automática"
-    else
-        echo "Rotación manual disponible. Uso: $0 rotate [left|right|inverted|normal]"
-    fi
+# Instalar dependencias
+install_dependencies() {
+    log "Instalando dependencias para modo tablet..."
+    
+    sudo apt update
+    sudo apt install -y iio-sensor-proxy onboard
+    
+    log "✓ Dependencias instaladas"
 }
 
 # Función principal
 main() {
-    case "$1" in
-        "install")
-            install_tablet_tools
-            enable_auto_rotation
-            enable_virtual_keyboard
-            configure_touch_gestures
+    case "${1:-status}" in
+        "status")
             show_status
             ;;
         "auto-rotation")
             enable_auto_rotation
             ;;
-        "keyboard")
-            enable_virtual_keyboard
+        "no-auto-rotation")
+            disable_auto_rotation
             ;;
         "gestures")
-            configure_touch_gestures
+            enable_gestures
             ;;
-        "status")
-            show_status
+        "install")
+            install_dependencies
             ;;
-        "rotate")
-            manual_rotation
+        "check")
+            check_sensors
             ;;
         *)
-            echo "Configurador de Modo Tableta para Surface/GNOME"
+            echo "Uso: $0 {status|auto-rotation|no-auto-rotation|gestures|install|check}"
             echo ""
-            echo "Uso: $0 [comando]"
-            echo ""
-            echo "Comandos disponibles:"
-            echo "  install       - Instalación completa del modo tableta"
-            echo "  auto-rotation - Habilitar rotación automática"
-            echo "  keyboard      - Habilitar teclado virtual"
-            echo "  gestures      - Configurar gestos táctiles"
-            echo "  status        - Mostrar estado actual"
-            echo "  rotate        - Información sobre rotación manual"
-            echo ""
-            show_status
+            echo "Comandos:"
+            echo "  status           - Mostrar estado actual"
+            echo "  auto-rotation    - Habilitar rotación automática"
+            echo "  no-auto-rotation - Deshabilitar rotación automática"
+            echo "  gestures         - Configurar gestos táctiles"
+            echo "  install          - Instalar dependencias"
+            echo "  check            - Verificar sensores"
+            exit 1
             ;;
     esac
 }

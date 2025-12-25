@@ -1,0 +1,25 @@
+╔══════════════════════════════════════════════════════════════╗
+║                    BAMBUSTUDIO LAUNCHER                      ║
+║                Intel Arrow Lake Graphics Fix                 ║
+╚══════════════════════════════════════════════════════════════╝
+
+PROBLEMA RESUELTO:
+  BambuStudio se congelaba con Intel Arrow Lake Graphics
+
+SOLUCIÓN:
+  Script unificado con 4 modos de ejecución
+
+USO RÁPIDO:
+  ~/bambustudio                    (menú interactivo)
+  ~/bambustudio flatpak           (modo actual funcionando)
+  ~/bambustudio --help            (ayuda completa)
+
+ARCHIVOS:
+  • bambustudio-launcher.sh       Script principal unificado
+  • README.md                     Documentación completa
+  • GUIA-RAPIDA.txt              Referencia rápida
+  • INDEX.txt                     Índice de contenidos
+
+ESTADO: ✅ Funcionando perfectamente con Flatpak
+
+Organizado: 24 diciembre 2024

@@ -1,0 +1,23 @@
+[Unit]
+Description=InputLeap Client for GDM Login Screen
+After=network-online.target display-manager.service
+Wants=network-online.target
+Before=gdm.service
+
+[Service]
+Type=simple
+User=gdm
+Group=gdm
+Environment=DISPLAY=:0
+Environment=WAYLAND_DISPLAY=wayland-0
+Environment=XDG_RUNTIME_DIR=/run/user/120
+Environment=HOME=/var/lib/gdm3
+ExecStartPre=/bin/sleep 8
+ExecStart=/bin/bash -c 'export DISPLAY=:0; export WAYLAND_DISPLAY=wayland-0; /usr/bin/flatpak run --system io.github.input_leap.input-leap --no-tray --client --server 192.168.0.114 --name Rivendel'
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=graphical.target
