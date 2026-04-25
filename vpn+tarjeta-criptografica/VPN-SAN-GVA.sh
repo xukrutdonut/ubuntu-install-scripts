@@ -356,7 +356,7 @@ if [ "$CERT_FOUND" = true ]; then
         --certificate "$CERT_CERT_URL" \
         --sslkey "$CERT_KEY_URL" \
         https://vpn.san.gva.es \
-        --servercert pin-sha256:h3CPvG+irXtGO04d14zc9rh1aGuUFVt43uB7NPRosvI= \
+        --servercert pin-sha256:wdJrJpXgpe2SGm8jUTUpV4UcV7JOipAtjyo++8279xQ= \
         --verbose
         
 else
@@ -375,7 +375,7 @@ else
         log "Iniciando openconnect en modo interactivo..."
         run_sudo openconnect \
             https://vpn.san.gva.es \
-            --servercert pin-sha256:h3CPvG+irXtGO04d14zc9rh1aGuUFVt43uB7NPRosvI= \
+            --servercert pin-sha256:wdJrJpXgpe2SGm8jUTUpV4UcV7JOipAtjyo++8279xQ= \
             --verbose
     else
         log "Conexión cancelada"
