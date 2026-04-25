@@ -3,6 +3,12 @@
 # Script mejorado para VPN Generalitat Valenciana
 # Versión depurada con verificaciones completas y soluciones automáticas
 # Fecha: 2025-11-27
+# Actualizado: 2026-04-25 - Migrado de SafeSign (G&D) a Bit4id (BIT4ID JCOP4 / NXP SecID P71)
+#
+# Tarjeta: BIT4ID JCOP4 - Certificado Empleado Público - Conselleria de Sanitat GVA
+# Módulo PKCS#11: /usr/lib/bit4id/libbit4xpki.so
+# Lector recomendado: Sveon SLW20 (Alcor Micro AU9540)
+# Setup: ./setup-bit4id-smartcard.sh
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -233,110 +239,18 @@ else
     exit 1
 fi
 
-# Verificar SafeSign con instalación automática GyD
-log "Verificando SafeSign..."
-if ! dpkg -l 2>/dev/null | grep -q safesign; then
-    warning "SafeSign no está instalado"
-    
-    # Verificar si existe el script de instalación GyD
-    if [ -f "InstalaciónGyD.sh" ]; then
-        echo ""
-        log "🎯 Script de instalación GyD encontrado"
-        read -p "¿Desea ejecutar la instalación completa GyD (Generalitat y Diputación)? (S/n): " -n 1 -r
-        echo
-        
-        if [[ $REPLY =~ ^[Nn]$ ]]; then
-            log "Saltando instalación GyD por decisión del usuario"
-        else
-            log "🚀 Ejecutando instalación GyD..."
-            echo "=================================================="
-            echo "INSTALANDO CERTIFICADOS DIGITALES GyD"
-            echo "=================================================="
-            
-            # Ejecutar el script GyD
-            chmod +x InstalaciónGyD.sh
-            if ./InstalaciónGyD.sh; then
-                success "✅ Instalación GyD completada correctamente"
-                log "Reiniciando servicio pcscd..."
-                run_sudo systemctl restart pcscd
-                sleep 3
-            else
-                warning "⚠️ Hubo problemas en la instalación GyD, continuando..."
-            fi
-            
-            echo "=================================================="
-            echo ""
-        fi
-    else
-        # Instalación manual como fallback
-        log "Script GyD no encontrado, buscando paquetes SafeSign..."
-        
-        # Buscar paquetes SafeSign en el directorio actual y subdirectorios
-        SAFESIGN_FILES=($(find . -maxdepth 2 -name "*afesign*" -name "*.deb" 2>/dev/null))
-        
-        # También buscar variantes comunes del nombre
-        if [ ${#SAFESIGN_FILES[@]} -eq 0 ]; then
-            SAFESIGN_FILES=($(find . -maxdepth 2 -iname "*safesign*" -name "*.deb" 2>/dev/null))
-        fi
-        
-        if [ ${#SAFESIGN_FILES[@]} -gt 0 ]; then
-            echo "Paquetes SafeSign encontrados:"
-            for i in "${!SAFESIGN_FILES[@]}"; do
-                echo "  $((i+1)). ${SAFESIGN_FILES[i]}"
-            done
-            
-            read -p "¿Desea instalar SafeSign? Seleccione número o N para cancelar: " -r
-            
-            if [[ $REPLY =~ ^[0-9]+$ ]] && [ "$REPLY" -gt 0 ] && [ "$REPLY" -le "${#SAFESIGN_FILES[@]}" ]; then
-                SELECTED_FILE="${SAFESIGN_FILES[$((REPLY-1))]}"
-                log "Instalando SafeSign: $SELECTED_FILE"
-                
-                if run_sudo dpkg -i "$SELECTED_FILE"; then
-                    success "SafeSign instalado correctamente"
-                    run_sudo systemctl restart pcscd
-                    sleep 3
-                else
-                    error "Error al instalar SafeSign"
-                    log "Intentando reparar dependencias..."
-                    run_sudo apt --fix-broken install -y
-                fi
-            fi
-        else
-            warning "No se encontraron paquetes SafeSign en el directorio actual"
-            echo "Debe descargar SafeSign desde AET Europe:"
-            echo "https://www.aeteurope.com/download-center/"
-            echo ""
-            log "Buscando SafeSign en ubicaciones comunes..."
-            
-            # Buscar en Downloads comunes
-            COMMON_LOCATIONS=("$HOME/Downloads" "$HOME/Descargas" "/tmp" "/home/*/Downloads" "/home/*/Descargas")
-            
-            for location in "${COMMON_LOCATIONS[@]}"; do
-                if [ -d "$location" ]; then
-                    FOUND_FILES=$(find "$location" -maxdepth 1 -iname "*safesign*.deb" 2>/dev/null | head -3)
-                    if [ -n "$FOUND_FILES" ]; then
-                        echo "SafeSign encontrado en $location:"
-                        echo "$FOUND_FILES"
-                        echo ""
-                    fi
-                fi
-            done
-        fi
+# Verificar Bit4id Middleware
+BIT4ID_MODULE="/usr/lib/bit4id/libbit4xpki.so"
+
+log "Verificando Bit4id Middleware..."
+if [ -f "$BIT4ID_MODULE" ] && dpkg -l libbit4xpki &>/dev/null 2>&1; then
+    success "Bit4id Middleware detectado ✅ (tarjeta BIT4ID JCOP4 / CNS)"
+    if [ ! -f "/usr/share/p11-kit/modules/bit4id.module" ]; then
+        echo "module: $BIT4ID_MODULE" | run_sudo tee /usr/share/p11-kit/modules/bit4id.module > /dev/null
     fi
 else
-    success "SafeSign ya está instalado ✅"
-    log "Verificando configuración de módulos PKCS#11..."
-    
-    # Verificar módulos configurados
-    if [ -f "/usr/share/p11-kit/modules/safesign.module" ]; then
-        success "Módulo SafeSign configurado ✅"
-    else
-        warning "Módulo SafeSign no configurado"
-        log "Configurando módulo SafeSign..."
-        run_sudo mkdir -p /usr/share/p11-kit/modules/
-        echo 'module: /usr/lib/libaetpkss.so' | run_sudo tee /usr/share/p11-kit/modules/safesign.module > /dev/null
-        success "Módulo SafeSign configurado"
-    fi
+    error "Bit4id Middleware no instalado. Ejecuta primero: ./setup-bit4id-smartcard.sh"
+    exit 1
 fi
 
 # Verificación avanzada de lectores de tarjetas
@@ -345,14 +259,13 @@ echo ""
 
 # Verificar USB
 log "Dispositivos USB conectados:"
-USB_READERS=$(lsusb | grep -i -E "(smart|card|reader|aet|gemalto|omnikey)")
+USB_READERS=$(lsusb | grep -i -E "(smart|card|reader|0783|058f|ccid)")
 if [ -n "$USB_READERS" ]; then
     echo "$USB_READERS"
     success "Lectores USB detectados ✅"
 else
-    warning "No se detectaron lectores de tarjetas USB específicos"
-    echo "Dispositivos USB genéricos:"
-    lsusb | head -5
+    warning "No se detectaron lectores de tarjetas USB"
+    echo "Conecta el lector Sveon SLW20 directamente a un puerto USB del equipo"
 fi
 
 echo ""
@@ -373,61 +286,41 @@ fi
 
 echo ""
 
-# Búsqueda exhaustiva de certificados
-log "Buscando certificados digitales disponibles..."
+# Búsqueda de certificados Bit4id (BIT4ID JCOP4 / NXP SecID P71)
+log "Buscando certificados en tarjeta Bit4id..."
 echo ""
 
 CERT_FOUND=false
 CERT_URL=""
-CERT_METHOD=""
 
-# Método 1: SafeSign específico
-log "Método 1: Verificando SafeSign (A.E.T. Europe)..."
-SAFESIGN_OUTPUT=$(p11tool --list-privkeys --login pkcs11:manufacturer=A.E.T.%20Europe%20B.V. 2>/dev/null | grep "URL:" | head -1)
-if [ -n "$SAFESIGN_OUTPUT" ]; then
-    CERT_URL=$(echo "$SAFESIGN_OUTPUT" | cut -d' ' -f2)
+# Método 1: p11tool con módulo Bit4id directo
+log "Método 1: Bit4id PKCS#11 (p11tool)..."
+BIT4ID_OUTPUT=$(p11tool --provider "$BIT4ID_MODULE" --list-privkeys --login 2>/dev/null | grep "URL:" | head -1)
+if [ -n "$BIT4ID_OUTPUT" ]; then
+    CERT_URL=$(echo "$BIT4ID_OUTPUT" | awk '{print $2}')
     CERT_FOUND=true
-    CERT_METHOD="SafeSign"
-    success "✅ Certificados encontrados con SafeSign"
+    success "✅ Certificado encontrado (Bit4id)"
 fi
 
-# Método 2: Opensc genérico
+# Método 2: p11tool con filtro NXP (token SecID P71)
 if [ "$CERT_FOUND" = false ]; then
-    log "Método 2: Verificando opensc genérico..."
-    if p11tool --list-tokens 2>/dev/null | grep -q "token:"; then
-        GENERIC_OUTPUT=$(p11tool --list-privkeys --login 2>/dev/null | grep "URL:" | head -1)
-        if [ -n "$GENERIC_OUTPUT" ]; then
-            CERT_URL=$(echo "$GENERIC_OUTPUT" | cut -d' ' -f2)
-            CERT_FOUND=true
-            CERT_METHOD="OpenSC genérico"
-            success "✅ Certificados encontrados con opensc"
-        fi
-    fi
-fi
-
-# Método 3: pkcs15-tool
-if [ "$CERT_FOUND" = false ]; then
-    log "Método 3: Verificando con pkcs15-tool..."
-    if pkcs15-tool --list-certificates 2>/dev/null | grep -q "X.509"; then
-        # Para pkcs15, necesitamos construir la URL manualmente
-        CERT_URL="pkcs15:"
+    log "Método 2: Bit4id por token NXP SecID P71..."
+    NXP_OUTPUT=$(p11tool --list-privkeys --login "pkcs11:manufacturer=NXP" 2>/dev/null | grep "URL:" | head -1)
+    if [ -n "$NXP_OUTPUT" ]; then
+        CERT_URL=$(echo "$NXP_OUTPUT" | awk '{print $2}')
         CERT_FOUND=true
-        CERT_METHOD="PKCS15"
-        success "✅ Certificados encontrados con pkcs15-tool"
+        success "✅ Certificado encontrado (token NXP)"
     fi
 fi
 
-# Método 4: Verificación de tokens disponibles
+# Método 3: pkcs11-tool con módulo Bit4id
 if [ "$CERT_FOUND" = false ]; then
-    log "Método 4: Verificando todos los tokens disponibles..."
-    TOKENS_OUTPUT=$(p11tool --list-tokens 2>/dev/null)
-    echo "Tokens disponibles:"
-    echo "$TOKENS_OUTPUT"
-    
-    # Verificar si hay tokens no de confianza del sistema
-    if echo "$TOKENS_OUTPUT" | grep -v "System Trust" | grep -q "Token"; then
-        warning "Se detectaron tokens, pero no se pudieron acceder a las claves privadas"
-        echo "Esto puede indicar que la tarjeta está insertada pero requiere PIN"
+    log "Método 3: pkcs11-tool con módulo Bit4id..."
+    if pkcs11-tool --module "$BIT4ID_MODULE" --list-objects --type cert 2>/dev/null | grep -q "Certificate"; then
+        # Construir URL PKCS#11 para el certificado de Empleado Público
+        CERT_URL="pkcs11:model=SecID%20P71;token=BIT4ID%20JCOP4;type=cert"
+        CERT_FOUND=true
+        success "✅ Certificado encontrado (pkcs11-tool)"
     fi
 fi
 
@@ -440,62 +333,51 @@ echo "🚀 INICIANDO CONEXIÓN VPN"
 echo "=========================================="
 
 if [ "$CERT_FOUND" = true ]; then
-    success "🎉 CERTIFICADOS DIGITALES DETECTADOS AUTOMÁTICAMENTE"
-    log "Método utilizado: $CERT_METHOD"
+    success "🎉 CERTIFICADO DETECTADO AUTOMÁTICAMENTE"
     log "URL del certificado: $CERT_URL"
     echo ""
     
-    log "Iniciando conexión VPN con certificado detectado..."
-    log "Se solicitará el PIN del certificado digital"
-    
-    # Mostrar información de conexión
     echo "=========================================="
     echo "DATOS DE CONEXIÓN:"
-    echo "- Servidor: https://vpn.san.gva.es"
-    echo "- Certificado: $CERT_URL"
-    echo "- Método: $CERT_METHOD"
+    echo "- Servidor:     https://vpn.san.gva.es"
+    echo "- Módulo:       $BIT4ID_MODULE"
+    echo "- Certificado:  $CERT_URL"
     echo "=========================================="
     echo ""
+    log "Conectando... se pedirá el PIN de la tarjeta."
     
-    # Comando de conexión con certificado específico
-    log "Ejecutando openconnect con certificado detectado..."
     run_sudo openconnect \
-        -c "$CERT_URL" \
+        --certificate "$CERT_URL" \
+        --sslkey "$CERT_URL" \
+        --key-password-from-fsid \
+        --pkcs11-provider "$BIT4ID_MODULE" \
         https://vpn.san.gva.es \
         --servercert pin-sha256:h3CPvG+irXtGO04d14zc9rh1aGuUFVt43uB7NPRosvI= \
         --verbose
         
 else
-    warning "No se detectaron certificados automáticamente"
-    log "Pero tras instalar GyD, el sistema debería funcionar"
+    warning "No se detectó certificado automáticamente."
+    echo ""
+    echo "Comprueba que:"
+    echo "  1. El lector Sveon está conectado directamente al USB (no en hub)"
+    echo "  2. La tarjeta está insertada"
+    echo "  3. pcscd está activo: systemctl status pcscd"
+    echo "  4. La tarjeta responde: pkcs11-tool --module $BIT4ID_MODULE --list-slots"
     echo ""
     
-    read -p "¿Desea intentar la conexión VPN de todas formas? (S/n): " -n 1 -r
+    read -p "¿Intentar conexión VPN interactiva igualmente? (s/N): " -n 1 -r
     echo
-    
-    if [[ $REPLY =~ ^[Nn]$ ]]; then
-        log "Conexión cancelada por el usuario"
+    if [[ $REPLY =~ ^[Ss]$ ]]; then
+        log "Iniciando openconnect en modo interactivo..."
+        run_sudo openconnect \
+            --pkcs11-provider "$BIT4ID_MODULE" \
+            https://vpn.san.gva.es \
+            --servercert pin-sha256:h3CPvG+irXtGO04d14zc9rh1aGuUFVt43uB7NPRosvI= \
+            --verbose
+    else
+        log "Conexión cancelada"
         exit 0
     fi
-    
-    log "🚀 Iniciando conexión VPN (openconnect detectará certificados)..."
-    log "Se solicitará seleccionar el certificado y PIN"
-    
-    # Mostrar información de conexión
-    echo "=========================================="
-    echo "DATOS DE CONEXIÓN:"
-    echo "- Servidor: https://vpn.san.gva.es"
-    echo "- Certificados: Detectados automáticamente por openconnect"
-    echo "- Método: Interactivo"
-    echo "=========================================="
-    echo ""
-    
-    # Comando de conexión sin certificado específico (openconnect los detectará)
-    log "Ejecutando openconnect (modo interactivo)..."
-    run_sudo openconnect \
-        https://vpn.san.gva.es \
-        --servercert pin-sha256:h3CPvG+irXtGO04d14zc9rh1aGuUFVt43uB7NPRosvI= \
-        --verbose
 fi
 
 # Al desconectar
