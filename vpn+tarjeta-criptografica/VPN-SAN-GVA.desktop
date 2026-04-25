@@ -1,0 +1,12 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=VPN SAN GVA
+GenericName=VPN Conselleria de Sanitat
+Comment=Conectar VPN Generalitat Valenciana con tarjeta criptográfica Bit4id
+Exec=gnome-terminal --title="VPN SAN GVA" -- bash -c "/home/arkantu/ubuntu-install-scripts/vpn+tarjeta-criptografica/VPN-SAN-GVA.sh; echo ''; echo 'Pulsa Enter para cerrar...'; read"
+Icon=nm-vpn-active-lock
+Terminal=false
+Categories=Network;Security;
+Keywords=vpn;gva;sanitat;tarjeta;criptografica;bit4id;
+StartupNotify=true
