@@ -334,23 +334,27 @@ echo "=========================================="
 
 if [ "$CERT_FOUND" = true ]; then
     success "🎉 CERTIFICADO DETECTADO AUTOMÁTICAMENTE"
-    log "URL del certificado: $CERT_URL"
+    log "URL clave privada: $CERT_URL"
+
+    # Derivar URL del certificado (type=cert) desde la URL de la clave privada
+    CERT_CERT_URL="${CERT_URL/type=private/type=cert}"
+    CERT_KEY_URL="$CERT_URL"
+
+    log "URL certificado:   $CERT_CERT_URL"
     echo ""
     
     echo "=========================================="
     echo "DATOS DE CONEXIÓN:"
     echo "- Servidor:     https://vpn.san.gva.es"
-    echo "- Módulo:       $BIT4ID_MODULE"
-    echo "- Certificado:  $CERT_URL"
+    echo "- Módulo:       $BIT4ID_MODULE (via p11-kit)"
+    echo "- Certificado:  $CERT_CERT_URL"
     echo "=========================================="
     echo ""
     log "Conectando... se pedirá el PIN de la tarjeta."
     
     run_sudo openconnect \
-        --certificate "$CERT_URL" \
-        --sslkey "$CERT_URL" \
-        --key-password-from-fsid \
-        --pkcs11-provider "$BIT4ID_MODULE" \
+        --certificate "$CERT_CERT_URL" \
+        --sslkey "$CERT_KEY_URL" \
         https://vpn.san.gva.es \
         --servercert pin-sha256:h3CPvG+irXtGO04d14zc9rh1aGuUFVt43uB7NPRosvI= \
         --verbose
@@ -370,7 +374,6 @@ else
     if [[ $REPLY =~ ^[Ss]$ ]]; then
         log "Iniciando openconnect en modo interactivo..."
         run_sudo openconnect \
-            --pkcs11-provider "$BIT4ID_MODULE" \
             https://vpn.san.gva.es \
             --servercert pin-sha256:h3CPvG+irXtGO04d14zc9rh1aGuUFVt43uB7NPRosvI= \
             --verbose
