@@ -1,0 +1,16 @@
+[Unit]
+Description=InputLeap watchdog - arranca y supervisa el servidor
+After=graphical-session.target
+After=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=/home/arkantu/ubuntu-install-scripts/screen-wake-monitor.sh
+Restart=on-failure
+RestartSec=10
+# Permitir múltiples reinicios (ej: crash al autorizar portal la primera vez)
+StartLimitBurst=10
+StartLimitIntervalSec=120
+
+[Install]
+WantedBy=graphical-session.target

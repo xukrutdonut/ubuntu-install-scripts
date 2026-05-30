@@ -1,0 +1,12 @@
+[Unit]
+Description=DPMS idle monitor — apaga el monitor sin activar el screensaver de GNOME
+After=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=/home/arkantu/ubuntu-install-scripts/dpms-idle-monitor.sh
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=graphical-session.target
