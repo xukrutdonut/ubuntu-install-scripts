@@ -1,21 +1,15 @@
 #!/bin/bash
-# Apaga el monitor vía Mutter (sin activar el screensaver de GNOME)
-# Así el portal Wayland de InputLeap nunca se revoca.
-#
-# Usa xprintidle (XWayland) para detectar inactividad y
-# org.gnome.Mutter.DisplayConfig.PowerSaveMode para controlar la pantalla:
-#   0 = encendido, 1 = standby, 2 = suspend, 3 = apagado
+# Apaga el monitor vía Mutter cuando InputLeap mueve el foco al cliente.
+# No usa idle (Mutter resetea el idle aunque el input vaya al cliente).
+# Monitoriza los eventos "leaving screen" / "entering screen" de input-leaps
+# via strace sobre su stdout, y controla la pantalla con PowerSaveMode:
+#   0 = encendido, 3 = apagado (sin screensaver, sin bloqueo, sin contraseña)
 
-IDLE_THRESHOLD_MS=300000   # 5 minutos en milisegundos
-CHECK_INTERVAL=15           # segundos entre comprobaciones
-DISPLAY=${DISPLAY:-:0}
-export DISPLAY
+FOCUS_TIMEOUT=30  # segundos sin foco → apagar pantalla
 
-log() {
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] dpms-idle: $*"
-}
+log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] inputleap-screen: $*"; }
 
-set_power_mode() {
+set_power() {
     gdbus call --session \
         --dest org.gnome.Mutter.DisplayConfig \
         --object-path /org/gnome/Mutter/DisplayConfig \
@@ -23,39 +17,60 @@ set_power_mode() {
         "org.gnome.Mutter.DisplayConfig" "PowerSaveMode" "<int32 $1>" 2>/dev/null
 }
 
-monitor_is_off() {
-    local mode
-    mode=$(gdbus call --session \
-        --dest org.gnome.Mutter.DisplayConfig \
-        --object-path /org/gnome/Mutter/DisplayConfig \
-        --method org.freedesktop.DBus.Properties.Get \
-        "org.gnome.Mutter.DisplayConfig" "PowerSaveMode" 2>/dev/null)
-    # Devuelve true si PowerSaveMode != 0
-    [[ "$mode" != "(<int32 0>,)" ]]
-}
+# FIFO para comunicar eventos del monitor al bucle principal
+EVENTS_FIFO=$(mktemp -u /tmp/inputleap-focus-XXXXXX)
+mkfifo "$EVENTS_FIFO"
+trap "rm -f '$EVENTS_FIFO'; kill 0" EXIT INT TERM
 
-log "Iniciado. Umbral de inactividad: $((IDLE_THRESHOLD_MS / 60000)) minutos"
+# Proceso en segundo plano: monitoriza el stdout de input-leaps via strace
+# y escribe LEAVE/ENTER en el FIFO cuando detecta cambios de foco
+(
+    while true; do
+        PID=$(pgrep -x input-leaps 2>/dev/null | head -1)
+        if [[ -z "$PID" ]]; then
+            sleep 5
+            continue
+        fi
+        log "Adjuntando strace a input-leaps PID=$PID"
+        strace -p "$PID" -e trace=write -s 500 -qq 2>&1 \
+            | grep --line-buffered -oP 'write\(1, "\K[^"]+' \
+            | while IFS= read -r line; do
+                if [[ "$line" == *"leaving screen"* ]]; then
+                    echo "LEAVE" > "$EVENTS_FIFO"
+                elif [[ "$line" == *"entering screen"* ]]; then
+                    echo "ENTER" > "$EVENTS_FIFO"
+                fi
+              done
+        log "strace terminó (input-leaps se reinició?). Reintentando en 3s..."
+        sleep 3
+    done
+) &
 
-screen_off=false
+log "Iniciado. Timeout de foco: ${FOCUS_TIMEOUT}s"
+log "Pantalla: Mutter DisplayConfig PowerSaveMode (sin screensaver)"
 
-while true; do
-    idle_ms=$(DISPLAY="$DISPLAY" xprintidle 2>/dev/null)
+# Abrir FIFO en modo lectura+escritura para evitar EOF al reconectar el productor
+exec 3<>"$EVENTS_FIFO"
 
-    if [[ -z "$idle_ms" ]]; then
-        sleep "$CHECK_INTERVAL"
-        continue
-    fi
+timer_pid=""
 
-    if [[ "$idle_ms" -ge "$IDLE_THRESHOLD_MS" ]] && [[ "$screen_off" == false ]]; then
-        log "Inactivo ${idle_ms}ms — apagando monitor"
-        set_power_mode 3
-        screen_off=true
-
-    elif [[ "$idle_ms" -lt 3000 ]] && [[ "$screen_off" == true ]]; then
-        log "Actividad detectada — encendiendo monitor"
-        set_power_mode 0
-        screen_off=false
-    fi
-
-    sleep "$CHECK_INTERVAL"
+while IFS= read -r event <&3; do
+    case "$event" in
+        LEAVE)
+            log "Foco → cliente. Apagando en ${FOCUS_TIMEOUT}s si no vuelve"
+            [[ -n "$timer_pid" ]] && kill "$timer_pid" 2>/dev/null
+            ( sleep "$FOCUS_TIMEOUT"
+              log "Timeout alcanzado — apagando pantalla (PowerSaveMode=3)"
+              set_power 3
+            ) &
+            timer_pid=$!
+            ;;
+        ENTER)
+            log "Foco → servidor. Encendiendo pantalla (PowerSaveMode=0)"
+            [[ -n "$timer_pid" ]] && kill "$timer_pid" 2>/dev/null
+            timer_pid=""
+            set_power 0
+            ;;
+    esac
 done
+
